@@ -6,9 +6,6 @@ Handles loading a raw CSV and running it through a standard cleaning pipeline:
 - missing value detection + imputation
 - duplicate row detection
 - basic column name normalization
-
-Returns both the cleaned dataframe and a "report" dict summarizing what was
-done, so the UI layer can show the user what changed.
 """
 
 import pandas as pd
@@ -16,10 +13,6 @@ import numpy as np
 
 
 def load_csv(uploaded_file) -> pd.DataFrame:
-    """
-    Load a CSV file (as passed in from Streamlit's file_uploader) into a
-    pandas DataFrame. Raises a clear error if the file can't be parsed.
-    """
     try:
         df = pd.read_csv(uploaded_file)
     except UnicodeDecodeError:
@@ -34,29 +27,16 @@ def load_csv(uploaded_file) -> pd.DataFrame:
 
 
 def strip_and_nullify_whitespace(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Many real-world CSVs have stray whitespace around values (e.g. " 29",
-    "Bob "), and cells that are blank/whitespace-only rather than truly
-    empty. Left alone, these break numeric/datetime type inference and
-    inflate "non-null" counts with values that are really missing data.
-
-    This strips whitespace from all string cells and converts any
-    whitespace-only or empty string to a proper NaN.
-    """
     df = df.copy()
     for col in df.columns:
         if df[col].dtype == "object" or pd.api.types.is_string_dtype(df[col]):
-            df[col] = df[col].astype(str).str.strip()
-            df[col] = df[col].replace(r"^\s*$", np.nan, regex=True)
+            df[col] = df[col].astype(str).str.strip() # " sample " -> "sample"
+            df[col] = df[col].replace(r"^\s*$", np.nan, regex=True) # "  " -> "nan"
             df[col] = df[col].replace("nan", np.nan)  # str(NaN) -> "nan"
     return df
 
 
 def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Standardize column names: strip whitespace, lowercase, replace spaces
-    with underscores. Keeps the dataset easier to work with programmatically.
-    """
     df = df.copy()
     df.columns = (
         df.columns.str.strip()
@@ -68,20 +48,10 @@ def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def infer_and_convert_types(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    """
-    Attempt to convert object columns to more useful types:
-    - datetime if it parses cleanly
-    - numeric if it parses cleanly
-    - otherwise leave as categorical/text
-
-    Returns the converted dataframe and a dict mapping column -> inferred type.
-    """
     df = df.copy()
     inferred_types = {}
 
     for col in df.columns:
-        # pandas 3.0+ defaults text columns to a native "str" dtype rather
-        # than the legacy "object" dtype, so we check for both.
         if df[col].dtype == "object" or pd.api.types.is_string_dtype(df[col]):
             original_non_null_count = df[col].notna().sum()
 
@@ -97,10 +67,7 @@ def infer_and_convert_types(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             converted_num = pd.to_numeric(df[col], errors="coerce")
             num_success_rate = converted_num.notna().sum() / original_non_null_count
 
-            # Success rate is measured against values that were ALREADY
-            # non-null, not against total row count -- a column with 20%
-            # legitimate missing data can still be 100% numeric among the
-            # values that are actually present.
+            # if the column changes 90% to the specific format, properly convert that column into that type
             if dt_success_rate >= 0.9:
                 df[col] = converted_dt
                 inferred_types[col] = "datetime"
@@ -178,18 +145,6 @@ def remove_duplicates(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
 
 
 def clean_dataframe(uploaded_file) -> dict:
-    """
-    Full cleaning pipeline. Takes a raw uploaded CSV file and runs it through
-    every step above, returning everything the UI needs in one dict:
-
-    {
-        "raw_df": original dataframe (before cleaning),
-        "clean_df": cleaned dataframe,
-        "column_types": {col: "numeric"/"categorical"/"datetime"},
-        "missing_value_report": {...},
-        "duplicates_removed": int,
-    }
-    """
     raw_df = load_csv(uploaded_file)
 
     df = strip_and_nullify_whitespace(raw_df)

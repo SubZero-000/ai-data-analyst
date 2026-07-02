@@ -22,12 +22,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def _get_api_key(api_key: str | None = None) -> str | None:
-    """
-    Resolve the Gemini API key from (in order of priority):
-    1. An explicitly passed argument
-    2. The GEMINI_API_KEY environment variable (local dev, via .env)
-    3. Streamlit secrets (when deployed on Streamlit Community Cloud)
-    """
     if api_key:
         return api_key
 

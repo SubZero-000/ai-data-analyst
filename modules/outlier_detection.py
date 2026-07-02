@@ -6,11 +6,6 @@ Detects outliers in a cleaned dataframe using three methods:
 - Z-score - assumes roughly normal distribution, sensitive to std deviation
 - Isolation Forest - multivariate ML method, catches outliers that only
   look anomalous when multiple columns are considered together
-
-Assumes the dataframe has already been through the cleaning pipeline
-(modules/data_cleaning.py), so missing values shouldn't be present in the
-numeric columns being scanned. Defensive NaN-handling is still included
-since this module may be reused standalone.
 """
 
 import numpy as np
@@ -36,10 +31,6 @@ def detect_outliers_iqr(df: pd.DataFrame, column: str) -> dict:
     iqr = q3 - q1
 
     if iqr == 0:
-        # Column is constant (or near-constant) among non-null values.
-        # Every differing value would technically fall outside a zero-width
-        # band, which produces noisy, low-value "outliers." Safer to report
-        # none rather than flood the user with false positives.
         return {
             "method": "iqr",
             "column": column,
@@ -150,18 +141,6 @@ def detect_outliers_isolation_forest(
 
 
 def detect_all_outliers(df: pd.DataFrame, method: str = "iqr") -> dict:
-    """
-    Run outlier detection across every numeric column in the dataframe
-    using the specified method ("iqr" or "zscore"), plus one multivariate
-    Isolation Forest pass across all numeric columns combined.
-
-    Returns:
-    {
-        "per_column": {col: result_dict, ...},
-        "multivariate": result_dict,
-        "total_unique_outlier_rows": int,
-    }
-    """
     numeric_cols = get_numeric_columns(df)
 
     if method == "iqr":
