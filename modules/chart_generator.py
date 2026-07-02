@@ -158,9 +158,21 @@ def generate_time_series_chart(
     return fig
 
 
-def generate_all_charts(df: pd.DataFrame, column_types: dict) -> dict:
+def generate_all_charts(
+    df: pd.DataFrame,
+    column_types: dict,
+    selected_columns: list[str] = None,
+    include_correlation: bool = True,
+    include_time_series: bool = True,
+) -> dict:
     """
-    Generate the full set of auto-charts for a cleaned dataframe.
+    Generate auto-charts for a cleaned dataframe.
+
+    `selected_columns`, if provided, restricts per-column chart generation
+    (and the columns considered for the correlation heatmap / time series)
+    to just that subset. If None, every column in `column_types` is used --
+    useful for small dataframes or programmatic/test use where filtering
+    isn't needed.
 
     Returns:
     {
@@ -169,6 +181,9 @@ def generate_all_charts(df: pd.DataFrame, column_types: dict) -> dict:
         "time_series": Figure or None,              # first datetime x first numeric col found
     }
     """
+    if selected_columns is not None:
+        column_types = {col: t for col, t in column_types.items() if col in selected_columns}
+
     per_column_charts = {}
     numeric_cols = [col for col, t in column_types.items() if t == "numeric"]
     datetime_cols = [col for col, t in column_types.items() if t == "datetime"]
@@ -183,10 +198,12 @@ def generate_all_charts(df: pd.DataFrame, column_types: dict) -> dict:
         elif col_type == "datetime":
             per_column_charts[col] = generate_datetime_chart(df, col)
 
-    correlation_heatmap = generate_correlation_heatmap(df, numeric_cols)
+    correlation_heatmap = None
+    if include_correlation:
+        correlation_heatmap = generate_correlation_heatmap(df, numeric_cols)
 
     time_series = None
-    if datetime_cols and numeric_cols:
+    if include_time_series and datetime_cols and numeric_cols:
         time_series = generate_time_series_chart(df, datetime_cols[0], numeric_cols[0])
 
     return {
