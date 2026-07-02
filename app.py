@@ -13,6 +13,7 @@ Flow:
 
 import streamlit as st
 import pandas as pd
+from PIL import Image
 
 from modules.data_cleaning import clean_dataframe
 from modules.outlier_detection import detect_all_outliers
@@ -24,15 +25,20 @@ try:
 except ImportError:
     AI_SUMMARY_AVAILABLE = False
 
-
+im = Image.open("favicon512.png")
 st.set_page_config(
     page_title="AI Data Analyst",
-    page_icon="📊",
+    page_icon=im,
     layout="wide",
 )
 
 
-st.title("📊 AI Data Analyst")
+col1, col2 = st.columns([1, 8])
+with col1:
+    st.image("favicon512.png", width=60) 
+
+with col2:
+    st.title("AI Data Analyst")
 st.caption("Upload a CSV and get automatic cleaning, outlier detection, charts, and an AI-generated summary.")
 
 uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
